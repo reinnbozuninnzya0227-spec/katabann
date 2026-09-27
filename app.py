@@ -15,9 +15,18 @@ def load_data():
       return pd.read_csv(CSV_FILE)
     except Exception:
       pass
-  # 製造年を追加した初期の表
+  # 「型番」と「製品番号」を分けた初期の表
   return pd.DataFrame(
-      columns=["家", "名前", "製品番号", "製造年", "メーカー", "説明書URL", "メモ"]
+      columns=[
+          "家",
+          "名前",
+          "型番",
+          "製品番号",
+          "製造年",
+          "メーカー",
+          "説明書URL",
+          "メモ",
+      ]
   )
 
 
@@ -37,8 +46,9 @@ if menu == "新規登録":
   with st.form("entry_form"):
     house = st.text_input("家（例: 自宅、実家 など）", value="自宅")
     name = st.text_input("名前（例: エアコン、テレビ など）")
-    model = st.text_input("製品番号（型番）")
-    year = st.text_input("製造年（例: 2023年製 など）")  # ← ここに追加！
+    model_no = st.text_input("型番（例: RAS-2810D など）")
+    serial_no = st.text_input("製品番号 / シリアル番号")
+    year = st.text_input("製造年（例: 2023年製 など）")
     maker = st.text_input("メーカー")
     url = st.text_input("説明書URL（https://...から始まるリンク）")
     memo = st.text_area("メモ")
@@ -52,8 +62,9 @@ if menu == "新規登録":
         new_data = pd.DataFrame([{
             "家": house,
             "名前": name,
-            "製品番号": model,
-            "製造年": year,  # ← ここに追加！
+            "型番": model_no,
+            "製品番号": serial_no,
+            "製造年": year,
             "メーカー": maker,
             "説明書URL": url,
             "メモ": memo,
@@ -74,7 +85,7 @@ elif menu == "データ一覧・検索":
     selected_house = st.selectbox("家で絞り込み", house_options)
 
     keyword = st.text_input(
-        "キーワード検索（名前・製品番号・製造年・メーカーなどから探す）", ""
+        "キーワード検索（名前・型番・製品番号・メーカーなどから探す）", ""
     )
 
     filtered_df = df.copy()
@@ -96,9 +107,10 @@ elif menu == "データ一覧・検索":
       with st.container(border=True):
         st.markdown(f"### 🏷️ {row['名前']} （家: **{row['家']}**）")
 
-        # 製造年やメーカー、製品番号をまとめて表示
+        # メーカー、型番、製品番号、製造年をわかりやすく整理して表示
         st.write(
             f"**メーカー:** {row.get('メーカー', '')} ／ "
+            f"**型番:** {row.get('型番', '')} ／ "
             f"**製品番号:** {row.get('製品番号', '')} ／ "
             f"**製造年:** {row.get('製造年', '')}"
         )
