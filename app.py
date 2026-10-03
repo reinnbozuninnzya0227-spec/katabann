@@ -8,14 +8,16 @@ CSV_FILE = "katabann_data.csv"
 st.title("🏠 型番・説明書管理アプリ（CSV・GitHub保存版）")
 
 
-# データの読み込み関数
+# データの読み込み関数（安全版）
 def load_data():
   if os.path.exists(CSV_FILE):
     try:
-      return pd.read_csv(CSV_FILE)
+      df = pd.read_csv(CSV_FILE)
+      if not df.empty:
+        return df
     except Exception:
       pass
-  # 「型番」と「製品番号」を分けた初期の表
+  # 初期データの列定義
   return pd.DataFrame(
       columns=[
           "家",
@@ -74,58 +76,22 @@ if menu == "新規登録":
         st.success(f"「{name}」を登録しました！")
 
 elif menu == "データ一覧・検索":
-  st.subheader("📋 登録されているデータの一覧・検索")
+  st.subheader("📋 登録されているデータの確認・編集・保存")
 
   if len(df) == 0:
     st.info("まだデータが登録されていません。「新規登録」から追加してください。")
   else:
-    st.markdown("### 🔍 絞り込み検索")
-
-    house_options = ["すべて"] + list(df["家"].dropna().unique())
-    selected_house = st.selectbox("家で絞り込み", house_options)
-
-    keyword = st.text_input(
-        "キーワード検索（名前・型番・製品番号・メーカーなどから探す）", ""
+    st.write(
+        "下の表で直接データを書き換えて、**「変更を保存する」ボタン**を押すとセーブされます。"
     )
 
-    filtered_df = df.copy()
+    # 表形式で直接編集できるようにする（ここでデータの修正が可能）
+    edited_df = st.data_editor(
+        df, num_rows="dynamic", use_container_width=True, key="data_table_editor"
+    )
 
-    if selected_house != "すべて":
-      filtered_df = filtered_df[filtered_df["家"] == selected_house]
-
-    if keyword:
-      mask = (
-          filtered_df.astype(str)
-          .apply(lambda x: x.str.contains(keyword, case=False, na=False))
-          .any(axis=1)
-      )
-      filtered_df = filtered_df[mask]
-
-    st.write(f"検索結果：**{len(filtered_df)}件** のデータが見つかりました")
-
-    for idx, row in filtered_df.iterrows():
-      with st.container(border=True):
-        st.markdown(f"### 🏷️ {row['名前']} （家: **{row['家']}**）")
-
-        # メーカー、型番、製品番号、製造年をわかりやすく整理して表示
-        st.write(
-            f"**メーカー:** {row.get('メーカー', '')} ／ "
-            f"**型番:** {row.get('型番', '')} ／ "
-            f"**製品番号:** {row.get('製品番号', '')} ／ "
-            f"**製造年:** {row.get('製造年', '')}"
-        )
-
-        url_val = str(row["説明書URL"])
-        if url_val and url_val.startswith("http"):
-          st.link_button("📖 説明書を開く", url_val)
-        elif url_val and url_val != "nan":
-          st.write(f"**説明書URL:** {url_val}")
-
-        if pd.notna(row["メモ"]) and str(row["メモ"]) != "":
-          st.write(f"**メモ:** {row['メモ']}")
-
-        if st.button("このデータを削除", key=f"del_{idx}"):
-          df = df.drop(idx).reset_index(drop=True)
-          save_data(df)
-          st.success("データを削除しました。")
-          st.rerun()
+    # 🌟 待望のセーブボタン！
+    if st.button("💾 変更を保存する", type="primary"):
+      save_data(edited_df)
+      st.success("変更を保存しました！")
+      st.rerun()
