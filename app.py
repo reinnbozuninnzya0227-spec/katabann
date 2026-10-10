@@ -17,11 +17,12 @@ def load_data():
         return df
     except Exception:
       pass
-  # 初期データの列定義
+  # 初期データの列定義（設置場所と商品名を追加）
   return pd.DataFrame(
       columns=[
           "家",
-          "名前",
+          "設置場所",
+          "商品名",
           "型番",
           "製品番号",
           "製造年",
@@ -47,7 +48,8 @@ if menu == "新規登録":
 
   with st.form("entry_form"):
     house = st.text_input("家（例: 自宅、実家 など）", value="自宅")
-    name = st.text_input("名前（例: エアコン、テレビ など）")
+    room = st.text_input("設置場所（例: リビング、寝室、キッチン など）")
+    product_name = st.text_input("商品名（例: エアコン、液晶テレビ など）")
     model_no = st.text_input("型番（例: RAS-2810D など）")
     serial_no = st.text_input("製品番号 / シリアル番号")
     year = st.text_input("製造年（例: 2023年製 など）")
@@ -58,12 +60,13 @@ if menu == "新規登録":
     submitted = st.form_submit_button("登録する")
 
     if submitted:
-      if name == "":
-        st.warning("「名前」を入力してください。")
+      if product_name == "":
+        st.warning("「商品名」を入力してください。")
       else:
         new_data = pd.DataFrame([{
             "家": house,
-            "名前": name,
+            "設置場所": room,
+            "商品名": product_name,
             "型番": model_no,
             "製品番号": serial_no,
             "製造年": year,
@@ -73,25 +76,71 @@ if menu == "新規登録":
         }])
         df = pd.concat([df, new_data], ignore_index=True)
         save_data(df)
-        st.success(f"「{name}」を登録しました！")
+        st.success(f"「{product_name}」を登録しました！")
 
 elif menu == "データ一覧・検索":
-  st.subheader("📋 登録されているデータの確認・編集・保存")
+  st.subheader("📋 登録されているデータの一覧・検索")
 
   if len(df) == 0:
     st.info("まだデータが登録されていません。「新規登録」から追加してください。")
   else:
-    st.write(
-        "下の表で直接データを書き換えて、**「変更を保存する」ボタン**を押すとセーブされます。"
+    st.markdown("### 🔍 絞り込み検索")
+
+    house_options = ["すべて"] + list(df["家"].dropna().unique())
+    selected_house = st.selectbox("家で絞り込み", house_options)
+
+    keyword = st.text_input(
+        "キーワード検索（商品名・設置場所・型番・メーカーなどから探す）", ""
     )
 
-    # 表形式で直接編集できるようにする（ここでデータの修正が可能）
-    edited_df = st.data_editor(
-        df, num_rows="dynamic", use_container_width=True, key="data_table_editor"
-    )
+    filtered_df = df.copy()
 
-    # 🌟 待望のセーブボタン！
-    if st.button("💾 変更を保存する", type="primary"):
-      save_data(edited_df)
-      st.success("変更を保存しました！")
+    if selected_house != "すべて":
+      filtered_df = filtered_df[filtered_df["家"] == selected_house]
+
+    if keyword:
+      mask = (
+          filtered_df.astype(str)
+          .apply(lambda x: x.str.contains(keyword, case=False, na=False))
+          .any(axis=1)
+      )
+      filtered_df = filtered_df[mask]
+
+    st.write(f"検索結果：**{len(filtered_df)}件** のデータが見つかりました")
+
+    updated_df = df.copy()
+
+    for idx, row in filtered_df.iterrows():
+      with st.container(border=True):
+        # カードのタイトルに商品名と設置場所を表示
+        loc_str = f"（設置場所: {row['設置場所']}）" if pd.notna(row['設置場所']) and row['設置場所'] != "" else ""
+        st.markdown(f"### 🏷️ {row['商品名']} {loc_str}")
+
+        st.write(
+            f"**家:** {row.get('家', '')} ／ "
+            f"**メーカー:** {row.get('メーカー', '')} ／ "
+            f"**型番:** {row.get('型番', '')} ／ "
+            f"**製品番号:** {row.get('製品番号', '')} ／ "
+            f"**製造年:** {row.get('製造年', '')}"
+        )
+
+        url_val = str(row["説明書URL"])
+        if url_val and url_val.startswith("http"):
+          st.link_button("📖 説明書を開く", url_val)
+        elif url_val and url_val != "nan":
+          st.write(f"**説明書URL:** {url_val}")
+
+        if pd.notna(row["メモ"]) and str(row["メモ"]) != "":
+          st.write(f"**メモ:** {row['メモ']}")
+
+        if st.button("このデータを削除", key=f"del_{idx}"):
+          updated_df = updated_df.drop(idx).reset_index(drop=True)
+          save_data(updated_df)
+          st.success("データを削除しました。")
+          st.rerun()
+
+    st.write("---")
+    if st.button("💾 データを保存・更新する", type="primary"):
+      save_data(updated_df)
+      st.success("データを保存しました！")
       st.rerun()
