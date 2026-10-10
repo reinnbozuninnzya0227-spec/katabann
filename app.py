@@ -17,11 +17,12 @@ def load_data():
         return df
     except Exception:
       pass
-  # 初期データの列定義（設置場所と商品名を追加）
+  # 初期データの列定義
   return pd.DataFrame(
       columns=[
           "家",
           "設置場所",
+          "名前",
           "商品名",
           "型番",
           "製品番号",
@@ -48,24 +49,30 @@ if menu == "新規登録":
 
   with st.form("entry_form"):
     house = st.text_input("家（例: 自宅、実家 など）", value="自宅")
-    room = st.text_input("設置場所（例: リビング、寝室、キッチン など）")
-    product_name = st.text_input("商品名（例: エアコン、液晶テレビ など）")
-    model_no = st.text_input("型番（例: RAS-2810D など）")
+    room = st.text_input("設置場所（例: リビング、書斎、キッチン など）")
+    name = st.text_input(
+        "名前 / シリーズ名（例: IdeaPad Slim 5 Light, ルンバ など）"
+    )
+    product_name = st.text_input(
+        "商品名 / ジャンル（例: ノートパソコン、石油ストーブ など）"
+    )
+    model_no = st.text_input("型番（例: 83J20054JP、RAS-2810D など）")
     serial_no = st.text_input("製品番号 / シリアル番号")
-    year = st.text_input("製造年（例: 2023年製 など）")
-    maker = st.text_input("メーカー")
+    year = st.text_input("製造年（例: 2025年製 など）")
+    maker = st.text_input("メーカー（例: Lenovo, ダイキン など）")
     url = st.text_input("説明書URL（https://...から始まるリンク）")
     memo = st.text_area("メモ")
 
     submitted = st.form_submit_button("登録する")
 
     if submitted:
-      if product_name == "":
-        st.warning("「商品名」を入力してください。")
+      if name == "" and product_name == "":
+        st.warning("「名前」または「商品名」を入力してください。")
       else:
         new_data = pd.DataFrame([{
             "家": house,
             "設置場所": room,
+            "名前": name,
             "商品名": product_name,
             "型番": model_no,
             "製品番号": serial_no,
@@ -76,7 +83,7 @@ if menu == "新規登録":
         }])
         df = pd.concat([df, new_data], ignore_index=True)
         save_data(df)
-        st.success(f"「{product_name}」を登録しました！")
+        st.success("データを登録しました！")
 
 elif menu == "データ一覧・検索":
   st.subheader("📋 登録されているデータの一覧・検索")
@@ -90,7 +97,8 @@ elif menu == "データ一覧・検索":
     selected_house = st.selectbox("家で絞り込み", house_options)
 
     keyword = st.text_input(
-        "キーワード検索（商品名・設置場所・型番・メーカーなどから探す）", ""
+        "キーワード検索（名前・商品名・設置場所・型番・メーカーなどから探す）",
+        "",
     )
 
     filtered_df = df.copy()
@@ -112,13 +120,26 @@ elif menu == "データ一覧・検索":
 
     for idx, row in filtered_df.iterrows():
       with st.container(border=True):
-        # カードのタイトルに商品名と設置場所を表示
-        loc_str = f"（設置場所: {row['設置場所']}）" if pd.notna(row['設置場所']) and row['設置場所'] != "" else ""
-        st.markdown(f"### 🏷️ {row['商品名']} {loc_str}")
+        # カードの見出し
+        display_name = (
+            row["名前"]
+            if pd.notna(row["名前"]) and row["名前"] != ""
+            else row["商品名"]
+        )
+        loc_str = (
+            f"（設置場所: {row['設置場所']}）"
+            if pd.notna(row["設置場所"]) and row["設置場所"] != ""
+            else ""
+        )
+        st.markdown(f"### 🏷️ {display_name} {loc_str}")
 
+        # 詳細情報の表示
         st.write(
             f"**家:** {row.get('家', '')} ／ "
-            f"**メーカー:** {row.get('メーカー', '')} ／ "
+            f"**商品名:** {row.get('商品名', '')} ／ "
+            f"**メーカー:** {row.get('メーカー', '')}"
+        )
+        st.write(
             f"**型番:** {row.get('型番', '')} ／ "
             f"**製品番号:** {row.get('製品番号', '')} ／ "
             f"**製造年:** {row.get('製造年', '')}"
